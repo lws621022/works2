@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eyejack辨試圖-學生作品展示</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            background: #f3f4f6;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 { margin-bottom: 20px; color: #1f2937; }
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin: 0 auto 30px auto;
+            max-width: 1000px;
+        }
+        h2 { font-size: 1.2rem; color: #4b5563; margin-top: 0; }
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        button {
+            width: 80px;
+            height: 45px;
+            font-size: 14px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        button:hover { background: #1d4ed8; transform: translateY(-2px); }
+        button:active { transform: scale(0.95); }
+        button.disabled {
+            background: #e5e7eb;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        #imageArea {
+            margin-top: 30px;
+            min-height: 400px;
+            padding-bottom: 50px;
+        }
+        .image-row {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+            margin: 20px auto;
+            max-width: 1100px;
+            flex-wrap: wrap;
+        }
+        .image-row img {
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            object-fit: contain;
+            background: #fff;
+            max-height: 75vh;
+            border: 1px solid #eee;
+        }
+        /* 第一張大圖 (辨識圖)，第二張小圖 (AR效果) 的比例調整 */
+        .image-main { width: 65%; min-width: 300px; }
+        .image-side { width: 25%; min-width: 200px; }
+        
+        /* 如果該排只有一張圖，則居中且放大 */
+        .single-image { width: 80% !important; max-width: 800px; }
+
+        .row-divider {
+            width: 60%;
+            border: none;
+            border-top: 1px solid #d1d5db;
+            margin: 40px auto;
+        }
+        .message {
+            font-size: 18px;
+            color: #9ca3af;
+            padding: 80px 20px;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2563eb;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<h1>eyejack辨試圖-學生作品展示</h1>
+
+
+
+<div class="section">
+    <h2>一年己班 (4136)</h2>
+    <div id="class4136" class="btn-group"></div>
+</div>
+
+<div id="imageArea">
+    <div class="message">請點選上方學號查看作品</div>
+</div>
+
+<script>
+const maxImageCount = 10;
+const studentCache = new Map();
+
+// 檢查圖片路徑
+function checkImage(path) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(path);
+        img.onerror = () => resolve(null);
+        img.src = path;
+    });
+}
+
+function getFolder(id) {
+    return id.toString().substring(0, 4);
+}
+
+async function getStudentImages(id) {
+    if (studentCache.has(id)) return studentCache.get(id);
+
+    const folder = getFolder(id);
+    const promises = [];
+    
+    // 同時偵測 1 到 10 號圖
+    for (let n = 1; n <= maxImageCount; n++) {
+        const path = `${folder}/${id}-${n}.jpg`;
+        promises.push(checkImage(path));
+    }
+
+    const results = await Promise.all(promises);
+    const validImages = results.filter(path => path !== null);
+    
+    studentCache.set(id, validImages);
+    return validImages;
+}
+
+async function show(id) {
+    const imageArea = document.getElementById("imageArea");
+    imageArea.innerHTML = `<div class="loader"></div><div style="color:#2563eb; font-weight:bold;">正在搜尋 ${id} 的所有作品...</div>`;
+
+    try {
+        const images = await getStudentImages(id);
+
+        if (images.length === 0) {
+            imageArea.innerHTML = `<div class="message">找不到 ${id} 的作品檔案。<br><small>(請確認檔案命名格式為 ${id}-1.jpg, ${id}-2.jpg ...)</small></div>`;
+            return;
+        }
+
+        imageArea.innerHTML = ""; 
+
+        // 每 2 張圖一組進行排版
+        for (let i = 0; i < images.length; i += 2) {
+            if (i >= 2) {
+                const hr = document.createElement("hr");
+                hr.className = "row-divider";
+                imageArea.appendChild(hr);
+            }
+
+            const row = document.createElement("div");
+            row.className = "image-row";
+
+            // 第一張 (左側/主圖)
+            const img1 = document.createElement("img");
+            img1.src = images[i];
+            img1.loading = "lazy";
+            
+            // 如果這組只有一張圖（例如最後一張是單數）
+            if (!images[i + 1]) {
+                img1.className = "image-main single-image";
+                row.appendChild(img1);
+            } else {
+                img1.className = "image-main";
+                row.appendChild(img1);
+
+                // 第二張 (右側/副圖)
+                const img2 = document.createElement("img");
+                img2.src = images[i + 1];
+                img2.loading = "lazy";
+                img2.className = "image-side";
+                row.appendChild(img2);
+            }
+
+            imageArea.appendChild(row);
+        }
+        
+        // 自動捲動到作品區起點
+        window.scrollTo({
+            top: imageArea.offsetTop - 20,
+            behavior: 'smooth'
+        });
+
+    } catch (err) {
+        imageArea.innerHTML = `<div class="message">讀取時發生錯誤，請重新整理網頁。</div>`;
+    }
+}
+
+function createButtons(start, end, containerId) {
+    const container = document.getElementById(containerId);
+    const folder = start.toString().substring(0, 4);
+
+    for (let i = start; i <= end; i++) {
+        const btn = document.createElement("button");
+        btn.innerText = i.toString().slice(-2);
+        btn.title = `學號: ${i}`;
+        btn.onclick = () => show(i);
+        container.appendChild(btn);
+
+        // 預檢第一張圖，判斷是否顯示為「未繳交」樣式
+        checkImage(`${folder}/${i}-1.jpg`).then(exists => {
+            if (!exists) {
+                btn.classList.add("disabled");
+                btn.title = "尚未上傳作品";
+                // 未繳交的學生按鈕點擊後仍可嘗試搜尋(預防萬一只有-2號圖之類的情況)
+            }
+        });
+    }
+}
+
+window.onload = () => {
+    
+    createButtons(413601, 413634, "class4136");
+};
+</script>
+
+</body>
+</html>
